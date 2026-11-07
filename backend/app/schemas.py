@@ -1,0 +1,113 @@
+from datetime import datetime
+
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.models import Movie, Review, Watchlist
+
+def _strip(v):
+    return v.strip() if isinstance(v, str) else v
+
+class Register_In(BaseModel):
+    username: str = Field(min_length=2, max_length=50)
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=72)
+    
+    field_validator("username", mode="before")
+    @classmethod
+    def strip_username(cls, v):
+        return _strip(v)
+
+    @field_validator("password")
+    @classmethod
+    def check_password_bytes(cls, v: str) -> str:
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("password maksimal 72 byte")
+        return v
+    
+class login_In(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=72)
+    
+class User_Out(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    username: str
+    email: str
+    created_at: datetime
+    
+class Token_Out(BaseModel):
+    token: str
+    token_type: str = "bearer"
+    user: User_Out
+    
+class Movie_Out(BaseModel):
+    id: int
+    title: str
+    year: int
+    director: str
+    genres: list[str]
+    rating: float
+    duration: str
+    synopsis: str
+    poster_url: str
+    cast: list[str]
+    
+    @classmethod
+    def from_model(cls, m: Movie) -> "Movie_Out":
+        return cls(
+            id=m.id, title=m.title, year=m.year, director=m.director,
+            genres=[g.name for g in m.genres], rating=m.rating, duration=m.duration,
+            synopsis=m.synopsis, poster_url=m.poster_url, cast=list(m.cast_members or []),
+        )
+    
+class Recommend_In(BaseModel):
+    prompt: str = Field(min_length=3, max_length=500)
+
+    @field_validator("prompt", mode="before")
+    @classmethod
+    def strip_prompt(cls, v):
+        return _strip(v)
+    
+class Recommend_Out(BaseModel):
+    movie_id: int
+    reasoning: str
+    
+class Watchlist_Add_In(BaseModel):
+    movie_id: int = Field(gt=0, validation_alias=AliasChoices("movieId", "movie_id"))
+    
+class Watchlist_Out(BaseModel):
+    id: int
+    movie_id: int
+    created_at: datetime
+    movie: Movie_Out
+
+    @classmethod
+    def from_model(cls, item: Watchlist) -> "Watchlist_Out":
+        return cls(id=item.id, movie_id=item.movie_id, created_at=item.created_at,
+                   movie=Movie_Out.from_model(item.movie))
+        
+class Watched_In(BaseModel):
+    movie_id: int = Field(gt=0, validation_alias=AliasChoices("movieId", "movie_id"))
+    rating: int = Field(ge=1, le=5)
+    review: str = Field(min_length=1, max_length=2000, validation_alias=AliasChoices("review", "opinion"))
+
+    @field_validator("review", mode="before")
+    @classmethod
+    def strip_review(cls, v):
+        return _strip(v)
+    
+class Watched_Out(BaseModel):
+    id: int
+    movie_id: int
+    rating: int
+    review: str
+    created_at: datetime
+    movie: Movie_Out
+
+    @classmethod
+    def from_model(cls, r: Review) -> "Watched_Out":
+        return cls(id=r.id, movie_id=r.movie_id, rating=r.rating, review=r.review,
+                   created_at=r.created_at, movie=Movie_Out.from_model(r.movie))
+
+class Message_Out(BaseModel):
+    message: str
