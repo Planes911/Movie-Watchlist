@@ -58,7 +58,7 @@ class Movie(Base):
         secondary=movie_genres, order_by="Genre.name", lazy="selectin"
     )
     
-class Watchlist(Base):
+class Watchlist_Item(Base):
     __tablename__ = "watchlists"
     
     __table_args__ = (UniqueConstraint("user_id", "movie_id", name="uq_watchlist_user_movie"),)

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.errors import Api_Error
 from app.models import Genre, Movie
-from app.schemas import Movie_Out, Recommend_In, Recommend_Out
+from app.schemas import Movie_Out
 
 router = APIRouter(prefix="/api/movies", tags=["Movies"])
 

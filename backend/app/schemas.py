@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.models import Movie, Review, Watchlist
+from app.models import Movie, Review, Watchlist_Item
 
 def _strip(v):
     return v.strip() if isinstance(v, str) else v
@@ -82,7 +82,7 @@ class Watchlist_Out(BaseModel):
     movie: Movie_Out
 
     @classmethod
-    def from_model(cls, item: Watchlist) -> "Watchlist_Out":
+    def from_model(cls, item: Watchlist_Item) -> "Watchlist_Out":
         return cls(id=item.id, movie_id=item.movie_id, created_at=item.created_at,
                    movie=Movie_Out.from_model(item.movie))
         
