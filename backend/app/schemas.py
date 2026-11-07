@@ -24,7 +24,7 @@ class Register_In(BaseModel):
             raise ValueError("password maksimal 72 byte")
         return v
     
-class login_In(BaseModel):
+class Login_In(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=72)
     
