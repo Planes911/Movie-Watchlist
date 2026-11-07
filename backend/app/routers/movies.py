@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.errors import Api_Error
 from app.models import Genre, Movie
-from app.schemas import Movie_Out
+from app.schemas import Movie_Out, Recommend_In, Recommend_Out
+from app.services.gemini import LLM_Client, LLM_Error, LLM_Not_Configured_Error, get_llm_client
+from app.services.recommender import Recommendation_Error, recommend_movie
 
 router = APIRouter(prefix="/api/movies", tags=["Movies"])
 
@@ -33,6 +35,24 @@ def list_movies(
     if shuffle:
         random.shuffle(movies)
     return [Movie_Out.from_model(m) for m in movies]
+
+@router.post("/recommend", response_model=Recommend_Out)
+def recommend(
+    payload: Recommend_In,
+    db: Session = Depends(get_db),
+    llm: LLM_Client = Depends(get_llm_client),
+):
+    movies = db.scalars(select(Movie).order_by(Movie.id)).all()
+    catalog = [
+        {"id": m.id, "title": m.title, "year": m.year, "genres": [g.name for g in m.genres], "synopsis": m.synopsis}
+        for m in movies
+    ]
+    try:
+        return recommend_movie(payload.prompt, catalog, llm)
+    except LLM_Not_Configured_Error:
+        raise Api_Error(503, "Fitur rekomendasi AI belum dikonfigurasi (GEMINI_API_KEY kosong).")
+    except (LLM_Error, Recommendation_Error):
+        raise Api_Error(502, "Layanan AI gagal memberi rekomendasi yang valid. Coba lagi sebentar.")
 
 @router.get("/{movie_id}", response_model=Movie_Out)
 def get_movie(movie_id: int, db: Session = Depends(get_db)):
