@@ -1,4 +1,4 @@
-"""Unit test fungsi murni: hashing, parsing jawaban LLM, seeder."""
+"""Unit tests for pure functions: password hashing, LLM answer parsing, the seeder."""
 import pytest
 from sqlalchemy import func, select
 
@@ -11,10 +11,10 @@ from app.services.recommender import build_user_prompt, parse_llm_json, validate
 
 def test_password_hashing_uses_unique_salt_and_verifies():
     h1, h2 = hash_password("password123"), hash_password("password123")
-    assert h1 != h2  # salt acak
+    assert h1 != h2  # random salt
     assert verify_password("password123", h1)
     assert not verify_password("password124", h1)
-    assert not verify_password("x" * 73, h1)  # lebih dari 72 byte ditolak, bukan crash
+    assert not verify_password("x" * 73, h1)  # more than 72 bytes is rejected, not a crash
 
 
 def test_parse_llm_json_handles_code_fence_and_list():
@@ -40,6 +40,6 @@ def test_user_prompt_cannot_break_out_of_its_tag():
 
 
 def test_seeder_is_idempotent():
-    with SessionLocal() as db:  # fixture autouse sudah men-seed sekali
+    with SessionLocal() as db:  # the autouse fixture already seeded once
         assert seed_movies(db, load_movies_json()) == 0
         assert db.scalar(select(func.count()).select_from(Movie)) == 20

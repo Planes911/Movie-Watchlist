@@ -1,9 +1,23 @@
+"""Movie recommendations from Gemini, grounded in the local database.
+
+Four layers keep the model from inventing movies:
+  1. CONTEXT    - the whole catalogue from the database is placed in the prompt.
+  2. RULES      - the system instruction forbids picking anything outside the list.
+  3. FORMAT     - JSON mode on the API side, plus the expected shape described in the prompt.
+  4. VALIDATION - the answer is parsed and its movie_id is checked against the ids that really
+                  exist. If invalid, retry once with feedback; if still invalid, raise.
+Layer 4 is the actual guarantee; layers 1-3 only raise the odds of a good answer.
+
+This module is framework-free (the catalogue is a plain list of dicts), so it is easy to test.
+"""
+
 import json
 import re
 from typing import Any
 
 from app.services.gemini import LLM_Client
 
+# Rules the model must follow. Written in Indonesian because the app's users and replies are.
 SYSTEM_INSTRUCTION = """
 Kamu adalah asisten rekomendasi film untuk aplikasi FilmLog.
 
@@ -21,14 +35,17 @@ ATURAN MUTLAK:
 """
    
 class Recommendation_Error(Exception):
-    """Gemini tidak menghasilkan rekomendasi yang valid setelah semua percobaan."""
+    """Gemini did not produce a valid recommendation after all attempts."""
     
 def build_user_prompt(user_prompt: str, catalog: list[dict[str, Any]]) -> str:
+    """Combine the full movie catalogue (grounding context) and the user's request into one prompt."""
     lines = [
         f'- id={m["id"]} | {m["title"]} ({m["year"]}) | genre: {", ".join(m["genres"])} | sinopsis: {m["synopsis"]}'
         for m in catalog
     ]
     
+    # Strip angle brackets so the user cannot close the <permintaan> tag and inject instructions
+    # (prompt injection).
     safe_prompt = re.sub(r"[<>]", " ", user_prompt)
     return (
         "DAFTAR FILM YANG TERSEDIA:\n"
@@ -40,7 +57,13 @@ def build_user_prompt(user_prompt: str, catalog: list[dict[str, Any]]) -> str:
     )
     
 def parse_llm_json(raw: str) -> dict[str, Any]:
+    """Parse the model's answer into a dict.
+
+    Tolerates Markdown code fences and a one-element list. Raises ValueError
+    (JSONDecodeError is a subclass) if the answer is not a JSON object.
+    """
     text = raw.strip()
+    # Models sometimes wrap JSON in ```json fences despite being told not to.
     fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
     if fence:
         text = fence.group(1)
@@ -52,7 +75,13 @@ def parse_llm_json(raw: str) -> dict[str, Any]:
     return data
 
 def validate_choice(data: dict[str, Any], valid_ids: set[int]) -> tuple[int, str]:
+    """Check the model's choice against reality; returns (movie_id, reasoning).
+
+    This is the real guard against hallucination: the movie_id must exist in the database
+    and the reasoning must be non-empty. Raises ValueError otherwise.
+    """
     movie_id = data.get("movie_id")
+    # bool is a subclass of int in Python, so reject it explicitly.
     if isinstance(movie_id, bool):
         raise ValueError("movie_id bukan angka")
     if isinstance(movie_id, float) and movie_id.is_integer():
@@ -61,6 +90,7 @@ def validate_choice(data: dict[str, Any], valid_ids: set[int]) -> tuple[int, str
         movie_id = int(movie_id.strip())
     if not isinstance(movie_id, int):
         raise ValueError("movie_id harus berupa integer")
+    # Catches hallucinated movies: the id must exist in our database.
     if movie_id not in valid_ids:
         raise ValueError(f"movie_id {movie_id} tidak ada di database")
 
@@ -75,6 +105,11 @@ def recommend_movie(
     llm: LLM_Client,
     max_attempts: int = 2
 ) -> dict[str, Any]:
+    """Ask the LLM for a recommendation and validate the answer.
+
+    An invalid answer is retried (default: one retry) with feedback about what was wrong.
+    Raises Recommendation_Error when all attempts fail; LLM_Error from the client propagates.
+    """
     valid_ids = {m["id"] for m in catalog}
     if not valid_ids:
         raise Recommendation_Error("Database film kosong; jalankan seeder terlebih dahulu.")
@@ -89,6 +124,7 @@ def recommend_movie(
             movie_id, reasoning = validate_choice(parse_llm_json(raw), valid_ids)
         except ValueError as exc:
             last_problem = str(exc)
+            # Retry with feedback: tell the model exactly why its previous answer was rejected.
             prompt = (
                 base_prompt
                 + f"\n\nCATATAN: jawabanmu sebelumnya ditolak karena {last_problem}. "

@@ -1,3 +1,5 @@
+"""Watchlist endpoints, including per-user data isolation."""
+
 def test_add_and_list_watchlist(client, user_a):
     r = client.post("/api/watchlist", json={"movieId": 1}, headers=user_a)
     assert r.status_code == 201
@@ -43,4 +45,4 @@ def test_delete_from_watchlist(client, user_a):
 def test_user_cannot_delete_another_users_entry(client, user_a, user_b):
     client.post("/api/watchlist", json={"movieId": 1}, headers=user_a)
     assert client.delete("/api/watchlist/1", headers=user_b).status_code == 404
-    assert len(client.get("/api/watchlist", headers=user_a).json()) == 1  # milik A utuh
+    assert len(client.get("/api/watchlist", headers=user_a).json()) == 1  # A's entry is untouched

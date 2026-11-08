@@ -1,4 +1,4 @@
-"""Guard autentikasi: setiap route privat harus menolak request tanpa token yang sah."""
+"""Auth guard: every private route must reject requests without a valid token."""
 from datetime import datetime, timedelta, timezone
 
 import jwt

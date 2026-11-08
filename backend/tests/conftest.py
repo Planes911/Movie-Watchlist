@@ -1,7 +1,7 @@
-"""Fixture bersama. Test memakai SQLite in-memory + Gemini palsu: cepat, tanpa internet & tanpa kuota."""
+"""Shared fixtures. Tests run on in-memory SQLite with a fake Gemini client: fast, offline, no API quota."""
 import os
 
-# HARUS di-set sebelum modul app diimpor (config dibaca saat import).
+# Must be set before any app module is imported (settings are read at import time).
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["JWT_SECRET"] = "test-secret-key-for-pytest-only-1234567890"
 os.environ["GEMINI_API_KEY"] = ""
@@ -18,7 +18,7 @@ from app.services.gemini import get_llm_client  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def database():
-    """Database bersih + 20 film untuk SETIAP test (test saling terisolasi)."""
+    """A clean database seeded with the 20 movies for EVERY test, so tests stay isolated."""
     Base.metadata.create_all(engine)
     with SessionLocal() as db:
         seed_movies(db, load_movies_json())
@@ -53,7 +53,7 @@ def user_b(client):
 
 
 class FakeLLM:
-    """Gemini palsu: mengembalikan jawaban yang sudah diskenariokan."""
+    """Fake Gemini client that returns pre-scripted answers (or raises scripted errors)."""
 
     def __init__(self, responses):
         self.responses = list(responses)
@@ -69,6 +69,7 @@ class FakeLLM:
 
 @pytest.fixture
 def fake_llm():
+    """Factory: fake_llm([...answers]) installs a scripted fake client for the request."""
     def install(responses):
         fake = FakeLLM(responses)
         app.dependency_overrides[get_llm_client] = lambda: fake

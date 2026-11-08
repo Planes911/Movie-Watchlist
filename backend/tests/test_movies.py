@@ -1,3 +1,5 @@
+"""Movie catalogue endpoints: listing, filtering, searching and detail."""
+
 def test_list_movies_returns_seeded_20_with_contract_shape(client):
     r = client.get("/api/movies")
     assert r.status_code == 200

@@ -1,3 +1,5 @@
+"""Watched/review endpoints: validation rules and per-user isolation."""
+
 REVIEW = {"movieId": 1, "rating": 5, "review": "Filmnya luar biasa"}
 
 
@@ -40,5 +42,5 @@ def test_logging_same_movie_twice_is_409(client, user_a):
 def test_watched_is_private_per_user(client, user_a, user_b):
     client.post("/api/watched", json=REVIEW, headers=user_a)
     assert client.get("/api/watched", headers=user_b).json() == []
-    # user lain boleh me-review film yang sama (unik per PASANGAN user+film)
+    # another user may review the same movie (uniqueness is per user+movie PAIR)
     assert client.post("/api/watched", json=REVIEW, headers=user_b).status_code == 201

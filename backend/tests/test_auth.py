@@ -1,3 +1,5 @@
+"""Registration and login."""
+
 import jwt
 from sqlalchemy import select
 
@@ -18,7 +20,7 @@ def test_register_success_and_password_is_hashed(client):
     with SessionLocal() as db:
         user = db.scalars(select(User)).one()
     assert user.password_hash != VALID["password"]
-    assert user.password_hash.startswith("$2")  # format bcrypt
+    assert user.password_hash.startswith("$2")  # bcrypt hash format
 
 
 def test_register_duplicate_email_is_409_case_insensitive(client):
@@ -52,4 +54,4 @@ def test_login_failures_are_401_with_identical_message(client):
     wrong_pw = client.post("/api/auth/login", json={"email": VALID["email"], "password": "salah-banget"})
     no_user = client.post("/api/auth/login", json={"email": "ghost@example.com", "password": "password123"})
     assert wrong_pw.status_code == 401 and no_user.status_code == 401
-    assert wrong_pw.json()["message"] == no_user.json()["message"]  # tidak membocorkan email terdaftar
+    assert wrong_pw.json()["message"] == no_user.json()["message"]  # does not reveal which emails are registered
