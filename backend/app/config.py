@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     bcrypt_rounds: int = 12
 
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-flash-latest"
+    gemini_model: str = "gemini-3.8-flash"
 
     cors_origins: str = "*"
     
