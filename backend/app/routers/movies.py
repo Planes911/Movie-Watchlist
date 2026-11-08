@@ -1,4 +1,5 @@
 import random
+import logging
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, or_, select
@@ -12,6 +13,7 @@ from app.services.gemini import LLM_Client, LLM_Error, LLM_Not_Configured_Error,
 from app.services.recommender import Recommendation_Error, recommend_movie
 
 router = APIRouter(prefix="/api/movies", tags=["Movies"])
+logger = logging.getLogger("filmlog")
 
 def _escape_like(text: str) -> str:
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -51,7 +53,8 @@ def recommend(
         return recommend_movie(payload.prompt, catalog, llm)
     except LLM_Not_Configured_Error:
         raise Api_Error(503, "Fitur rekomendasi AI belum dikonfigurasi (GEMINI_API_KEY kosong).")
-    except (LLM_Error, Recommendation_Error):
+    except (LLM_Error, Recommendation_Error) as exc:
+        logger.error("Rekomendasi gagal: %s", exc)
         raise Api_Error(502, "Layanan AI gagal memberi rekomendasi yang valid. Coba lagi sebentar.")
 
 @router.get("/{movie_id}", response_model=Movie_Out)

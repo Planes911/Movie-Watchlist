@@ -34,8 +34,8 @@ class Gemini_Client:
                     temperature=0.3,
                 ),
             )
-        except Exception as exc:  # error jaringan, kuota (429), key salah, nama model salah, dll.
-            raise LLM_Error(f"Pemanggilan Gemini gagal: {type(exc).__name__}") from exc
+        except Exception as exc:
+            raise LLM_Error(f"Pemanggilan Gemini gagal: {type(exc).__name__}: {exc}") from exc
 
         text = response.text
         if not text:
