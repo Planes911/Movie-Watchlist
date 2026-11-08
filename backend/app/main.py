@@ -30,3 +30,7 @@ app.include_router(watched.router)
 @app.get("/api/health", tags=["Meta"])
 def health():
     return {"status": "ok"}
+
+@app.get("/", include_in_schema=False)
+def root():
+    return {"name": "FilmLog API", "docs": "/docs", "health": "/api/health"}
