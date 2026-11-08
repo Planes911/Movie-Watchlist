@@ -55,7 +55,7 @@ def recommend(
         raise Api_Error(503, "Fitur rekomendasi AI belum dikonfigurasi (GEMINI_API_KEY kosong).")
     except (LLM_Error, Recommendation_Error) as exc:
         logger.error("Rekomendasi gagal: %s", exc)
-        raise Api_Error(502, "Layanan AI gagal memberi rekomendasi yang valid. Coba lagi sebentar.")
+        raise Api_Error(502, f"DEBUG: {exc}")   # SEMENTARA
 
 @router.get("/{movie_id}", response_model=Movie_Out)
 def get_movie(movie_id: int, db: Session = Depends(get_db)):
